@@ -25,7 +25,7 @@ ccxt==4.3.15
 # Data / Analytics
 pandas==2.2.2
 numpy==1.26.4
-pandas-ta @ https://github.com/twopirllc/pandas-ta/archive/refs/heads/development.tar.gz
+ta==0.11.0
 scipy==1.13.0
 
 # Backtesting
