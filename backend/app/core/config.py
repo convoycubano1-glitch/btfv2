@@ -1,8 +1,7 @@
 from pydantic_settings import BaseSettings
-from pydantic import AnyHttpUrl, field_validator
-from typing import List, Any
+from pydantic import AnyHttpUrl
+from typing import List
 import secrets
-import json
 
 
 class Settings(BaseSettings):
@@ -20,17 +19,17 @@ class Settings(BaseSettings):
     REDIS_URL: str = "redis://localhost:6379/0"
 
     # ── CORS ──────────────────────────────────────────────────────────────────
-    ALLOWED_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:5173"]
+    # Stored as a comma-separated string to avoid pydantic-settings JSON parsing issues.
+    # Use the allowed_origins property to get a list.
+    ALLOWED_ORIGINS: str = "http://localhost:3000,http://localhost:5173"
 
-    @field_validator("ALLOWED_ORIGINS", mode="before")
-    @classmethod
-    def parse_allowed_origins(cls, v: Any) -> Any:
-        if isinstance(v, str):
-            v = v.strip()
-            if v.startswith("["):
-                return json.loads(v)
-            return [origin.strip() for origin in v.split(",") if origin.strip()]
-        return v
+    @property
+    def allowed_origins_list(self) -> List[str]:
+        import json
+        v = self.ALLOWED_ORIGINS.strip()
+        if v.startswith("["):
+            return json.loads(v)
+        return [o.strip() for o in v.split(",") if o.strip()]
 
     # ── Supabase ──────────────────────────────────────────────────────────────
     SUPABASE_URL: str = ""
