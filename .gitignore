@@ -42,3 +42,6 @@ logs/
 *.pem
 *.key
 *.p12
+
+# Local Netlify folder
+.netlify

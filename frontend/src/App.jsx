@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { useSelector } from 'react-redux'
+import { useAuth } from '@clerk/react'
+import { useEffect } from 'react'
 import Layout from './components/layout/Layout'
 import Login from './pages/Login'
 import Register from './pages/Register'
@@ -17,22 +18,36 @@ import Subscription from './pages/Subscription'
 import AIAssistant from './pages/AIAssistant'
 import Settings from './pages/Settings'
 import Disclaimer from './components/common/Disclaimer'
+import { PageLoader } from './components/common/LoadingSpinner'
+import { setClerkGetToken } from './services/api'
+
+// Syncs Clerk's getToken into the axios interceptor
+function ClerkTokenSync() {
+  const { getToken } = useAuth()
+  useEffect(() => {
+    setClerkGetToken(getToken)
+  }, [getToken])
+  return null
+}
 
 function ProtectedRoute({ children }) {
-  const { user, token } = useSelector((s) => s.auth)
-  if (!token) return <Navigate to="/login" replace />
+  const { isSignedIn, isLoaded } = useAuth()
+  if (!isLoaded) return <PageLoader />
+  if (!isSignedIn) return <Navigate to="/login" replace />
   return children
 }
 
 function PublicRoute({ children }) {
-  const { token } = useSelector((s) => s.auth)
-  if (token) return <Navigate to="/dashboard" replace />
+  const { isSignedIn, isLoaded } = useAuth()
+  if (!isLoaded) return <PageLoader />
+  if (isSignedIn) return <Navigate to="/dashboard" replace />
   return children
 }
 
 export default function App() {
   return (
     <BrowserRouter>
+      <ClerkTokenSync />
       <Disclaimer />
       <Routes>
         {/* Public */}

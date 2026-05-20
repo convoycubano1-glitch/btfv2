@@ -1,9 +1,9 @@
 import { useLocation } from 'react-router-dom'
-import { Bell, Wifi, WifiOff, LogOut, User } from 'lucide-react'
+import { Bell, Wifi, WifiOff } from 'lucide-react'
 import { useSelector } from 'react-redux'
+import { UserButton, useUser } from '@clerk/react'
 import { useAuth } from '../../hooks/useAuth'
 import EmergencyStop from '../common/EmergencyStop'
-import { formatCurrency } from '../../utils/formatters'
 
 const PAGE_TITLES = {
   '/dashboard': 'Dashboard',
@@ -23,7 +23,8 @@ const PAGE_TITLES = {
 
 export default function Header() {
   const { pathname } = useLocation()
-  const { user, signOut } = useAuth()
+  const { user: clerkUser } = useUser()
+  const { triggerEmergencyStop } = useAuth()
   const connected = useSelector((s) => s.market.connected)
   const title = PAGE_TITLES[pathname] || 'TradeBotHub Pro'
 
@@ -54,20 +55,12 @@ export default function Header() {
 
         {/* User Menu */}
         <div className="flex items-center gap-2 pl-3 border-l border-surface-200">
-          <div className="w-8 h-8 bg-brand-500 rounded-full flex items-center justify-center text-white text-sm font-semibold">
-            {user?.username?.[0]?.toUpperCase() || 'U'}
+          <div className="hidden sm:block text-right">
+            <p className="text-sm font-medium text-white leading-tight">
+              {clerkUser?.username || clerkUser?.firstName || clerkUser?.primaryEmailAddress?.emailAddress?.split('@')[0] || 'User'}
+            </p>
           </div>
-          <div className="hidden sm:block text-left">
-            <p className="text-sm font-medium text-white leading-tight">{user?.username || 'User'}</p>
-            <p className="text-xs text-brand-400 capitalize">{user?.subscription?.plan || 'free'}</p>
-          </div>
-          <button
-            onClick={signOut}
-            className="p-2 text-gray-400 hover:text-trading-red hover:bg-trading-red/10 rounded-lg transition-colors ml-1"
-            title="Sign out"
-          >
-            <LogOut size={16} />
-          </button>
+          <UserButton afterSignOutUrl="/login" />
         </div>
       </div>
     </header>

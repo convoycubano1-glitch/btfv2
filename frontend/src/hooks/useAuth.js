@@ -1,35 +1,38 @@
-import { useDispatch, useSelector } from 'react-redux'
-import { useCallback, useEffect } from 'react'
-import { login, register, logout, fetchMe, emergencyStop } from '../store/authSlice'
+import { useDispatch } from 'react-redux'
+import { useCallback } from 'react'
+import { useUser, useAuth as useClerkAuth } from '@clerk/react'
+import { emergencyStop } from '../store/authSlice'
 import wsService from '../services/websocket'
 
 export function useAuth() {
   const dispatch = useDispatch()
-  const { user, token, loading, error } = useSelector((s) => s.auth)
+  const { user: clerkUser, isLoaded } = useUser()
+  const { isSignedIn, signOut: clerkSignOut, getToken } = useClerkAuth()
 
-  useEffect(() => {
-    if (token && !user) {
-      dispatch(fetchMe())
-    }
-  }, [token, user, dispatch])
-
-  const signIn = useCallback((creds) => dispatch(login(creds)), [dispatch])
-  const signUp = useCallback((data) => dispatch(register(data)), [dispatch])
-  const signOut = useCallback(() => {
+  const signOut = useCallback(async () => {
     wsService.disconnect()
-    dispatch(logout())
-  }, [dispatch])
+    await clerkSignOut()
+  }, [clerkSignOut])
+
   const triggerEmergencyStop = useCallback(() => dispatch(emergencyStop()), [dispatch])
+
+  // Map Clerk user to app-compatible shape
+  const user = clerkUser ? {
+    email: clerkUser.primaryEmailAddress?.emailAddress,
+    username: clerkUser.username || clerkUser.firstName || clerkUser.primaryEmailAddress?.emailAddress?.split('@')[0],
+    full_name: clerkUser.fullName,
+    avatar_url: clerkUser.imageUrl,
+    clerk_id: clerkUser.id,
+  } : null
 
   return {
     user,
-    token,
-    loading,
-    error,
-    isAuthenticated: !!token,
-    signIn,
-    signUp,
+    isAuthenticated: !!isSignedIn,
+    isLoaded,
+    loading: !isLoaded,
+    error: null,
     signOut,
+    getToken,
     triggerEmergencyStop,
   }
 }
