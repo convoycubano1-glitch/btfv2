@@ -61,9 +61,18 @@ class BotResponse(BaseModel):
 class BotUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
+    status: Optional[str] = None
     parameters: Optional[dict[str, Any]] = None
     max_position_size_pct: Optional[float] = None
     stop_loss_pct: Optional[float] = None
     take_profit_pct: Optional[float] = None
     max_open_trades: Optional[int] = None
     max_daily_loss_pct: Optional[float] = None
+
+    @field_validator("status")
+    @classmethod
+    def valid_status(cls, v: Optional[str]) -> Optional[str]:
+        from app.models.bot import BotStatus
+        if v is not None and v not in [s.value for s in BotStatus]:
+            raise ValueError(f"Invalid status. Choose from: {[s.value for s in BotStatus]}")
+        return v

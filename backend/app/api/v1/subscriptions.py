@@ -87,3 +87,23 @@ async def stripe_webhook(request: Request, db: AsyncSession = Depends(get_db)):
 
     await stripe_service.handle_webhook_event(event, db)
     return {"received": True}
+
+
+@router.get("/invoices", response_model=list[dict])
+async def get_invoices(
+    user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return Stripe invoices for the current user. Returns empty list if not subscribed or Stripe unavailable."""
+    result = await db.execute(
+        select(Subscription).where(Subscription.user_id == uuid.UUID(user_id))
+    )
+    sub = result.scalar_one_or_none()
+    if not sub or not sub.stripe_customer_id:
+        return []
+    stripe_service = StripeService()
+    try:
+        invoices = await stripe_service.get_invoices(sub.stripe_customer_id)
+        return invoices
+    except Exception:
+        return []

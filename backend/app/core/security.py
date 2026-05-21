@@ -59,17 +59,23 @@ async def verify_clerk_token(token: str) -> dict[str, Any]:
         )
 
 # ── Fernet encryption (for API keys) ─────────────────────────────────────────
+import logging as _sec_log
 _fernet: Optional[Fernet] = None
 
 
-def get_fernet() -> Fernet:
+def get_fernet() -> Optional[Fernet]:
+    """Returns Fernet instance if ENCRYPTION_KEY is configured, else None.
+    Callers must handle None (encryption not available).
+    """
     global _fernet
     if _fernet is None:
         if not settings.ENCRYPTION_KEY:
-            key = Fernet.generate_key()
-        else:
-            key = settings.ENCRYPTION_KEY.encode()
-        _fernet = Fernet(key)
+            # Do NOT generate a random key — that would make saved data unreadable on restart.
+            _sec_log.getLogger(__name__).warning(
+                "ENCRYPTION_KEY not set. Exchange API key encryption is disabled."
+            )
+            return None
+        _fernet = Fernet(settings.ENCRYPTION_KEY.encode())
     return _fernet
 
 
@@ -146,10 +152,20 @@ async def get_or_create_user(clerk_sub: str, db: AsyncSession) -> "User":
 
 # ── API key encryption ────────────────────────────────────────────────────────
 def encrypt_api_key(plain_key: str) -> str:
-    """Encrypt an exchange API key for safe storage."""
-    return get_fernet().encrypt(plain_key.encode()).decode()
+    """Encrypt an exchange API key for safe storage. Returns plain key if encryption not configured."""
+    f = get_fernet()
+    if f is None:
+        return plain_key   # Store unencrypted — better than crashing; warn already logged
+    return f.encrypt(plain_key.encode()).decode()
 
 
 def decrypt_api_key(encrypted_key: str) -> str:
-    """Decrypt an exchange API key for use."""
-    return get_fernet().decrypt(encrypted_key.encode()).decode()
+    """Decrypt an exchange API key. Returns key as-is if encryption not configured."""
+    f = get_fernet()
+    if f is None:
+        return encrypted_key
+    try:
+        return f.decrypt(encrypted_key.encode()).decode()
+    except Exception:
+        # Key may have been stored without encryption (before ENCRYPTION_KEY was set)
+        return encrypted_key

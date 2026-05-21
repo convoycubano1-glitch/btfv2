@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy import Column, String, DateTime, ForeignKey, Float, Integer, JSON, Enum as SAEnum, Text
+from sqlalchemy import Column, String, DateTime, ForeignKey, Float, Integer, JSON, Enum as SAEnum, Text, Index
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from app.core.database import Base
@@ -66,6 +66,13 @@ class Trade(Base):
 
     user = relationship("User", back_populates="trades")
     bot = relationship("Bot", back_populates="trades")
+
+    __table_args__ = (
+        Index("ix_trades_user_id", "user_id"),
+        Index("ix_trades_status", "status"),
+        Index("ix_trades_user_created_at", "user_id", "created_at"),
+        Index("ix_trades_user_status", "user_id", "status"),
+    )
 
     def __repr__(self):
         return f"<Trade {self.symbol} {self.side} [{self.status}]>"

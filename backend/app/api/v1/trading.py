@@ -96,18 +96,30 @@ async def get_portfolio_summary(
     winning_trades = row.winning_trades or 0
     win_rate = (winning_trades / total_trades * 100) if total_trades > 0 else 0
 
-    # Active bots count
+    # Active bots count + aggregate PnL from bots
     bots_result = await db.execute(
-        select(func.count(Bot.id)).where(
+        select(
+            func.count(Bot.id).label("active_count"),
+            func.coalesce(func.sum(Bot.total_pnl), 0).label("bots_pnl"),
+        ).where(
             Bot.user_id == uuid.UUID(user_id),
             Bot.status == BotStatus.ACTIVE,
         )
     )
-    active_bots = bots_result.scalar() or 0
+    bots_row = bots_result.one()
+    active_bots = bots_row.active_count or 0
+
+    # Approximate equity: trades PnL + assumed starting capital
+    # In a full implementation this would query an equity_snapshots table
+    ASSUMED_STARTING_CAPITAL = 10000.0
+    total_equity = ASSUMED_STARTING_CAPITAL + total_pnl
+    total_pnl_pct = (total_pnl / ASSUMED_STARTING_CAPITAL * 100) if ASSUMED_STARTING_CAPITAL > 0 else 0
 
     return {
         "total_trades": total_trades,
-        "total_pnl": total_pnl,
+        "total_pnl": round(total_pnl, 2),
+        "total_pnl_pct": round(total_pnl_pct, 2),
+        "total_equity": round(total_equity, 2),
         "win_rate": round(win_rate, 2),
         "active_bots": active_bots,
         "disclaimer": "Past performance is not indicative of future results.",

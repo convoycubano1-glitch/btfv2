@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.core.database import get_db
@@ -8,6 +8,31 @@ from app.schemas.signal import SignalCreate, SignalResponse
 import uuid
 
 router = APIRouter()
+
+
+@router.get("/", response_model=list[SignalResponse])
+async def list_public_signals(
+    symbol: str | None = Query(None),
+    signal_type: str | None = Query(None),
+    free_only: bool = Query(False),
+    skip: int = 0,
+    limit: int = 50,
+    db: AsyncSession = Depends(get_db),
+):
+    """Public feed of all published active signals."""
+    query = select(Signal).where(
+        Signal.is_published == True,
+        Signal.status == SignalStatus.ACTIVE,
+    )
+    if symbol:
+        query = query.where(Signal.symbol == symbol.upper())
+    if signal_type:
+        query = query.where(Signal.signal_type == signal_type)
+    if free_only:
+        query = query.where(Signal.is_free == True)
+    query = query.order_by(Signal.created_at.desc()).offset(skip).limit(limit)
+    result = await db.execute(query)
+    return [SignalResponse.model_validate(s) for s in result.scalars().all()]
 
 
 @router.get("/my", response_model=list[SignalResponse])

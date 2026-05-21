@@ -107,10 +107,18 @@ async def update_bot(
     db: AsyncSession = Depends(get_db),
 ):
     bot = await _get_user_bot(bot_id, user_id, db)
-    if bot.status == BotStatus.ACTIVE:
-        raise HTTPException(status_code=400, detail="Cannot update a running bot. Pause it first.")
+    update_data = payload.model_dump(exclude_none=True)
 
-    for field, value in payload.model_dump(exclude_none=True).items():
+    # Allow status changes (pause/stop) even on active bots
+    status_change = update_data.pop("status", None)
+    if status_change is not None:
+        bot.status = status_change
+
+    # Block other parameter changes on active bots
+    if update_data and bot.status == BotStatus.ACTIVE:
+        raise HTTPException(status_code=400, detail="Cannot update parameters of a running bot. Pause it first.")
+
+    for field, value in update_data.items():
         setattr(bot, field, value)
     await db.commit()
     await db.refresh(bot)

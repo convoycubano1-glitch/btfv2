@@ -2,15 +2,26 @@ from pydantic_settings import BaseSettings
 from pydantic import AnyHttpUrl
 from typing import List
 import secrets
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class Settings(BaseSettings):
     # ── App ───────────────────────────────────────────────────────────────────
     ENVIRONMENT: str = "development"
+    # REQUIRED in production — set via env var. Never let this auto-generate
+    # because all JWTs are invalidated on every restart.
     SECRET_KEY: str = secrets.token_urlsafe(32)
     ENCRYPTION_KEY: str = ""          # Fernet key for API key encryption
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
     REFRESH_TOKEN_EXPIRE_DAYS: int = 30
+
+    # ── Frontend ──────────────────────────────────────────────────────────────
+    FRONTEND_URL: str = "https://btfv2.netlify.app"
+
+    # ── Clerk JWKS cache TTL (seconds) ────────────────────────────────────────
+    JWKS_CACHE_TTL_SECONDS: int = 300  # 5 minutes
 
     # ── Database ──────────────────────────────────────────────────────────────
     DATABASE_URL: str = "postgresql+asyncpg://tradebothub:tradebothub_secret@localhost:5432/tradebothub"
@@ -57,3 +68,16 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+# ── Runtime validation warnings ───────────────────────────────────────────────
+if settings.ENVIRONMENT == "production":
+    if not settings.ENCRYPTION_KEY:
+        raise RuntimeError(
+            "ENCRYPTION_KEY env var is required in production. "
+            "Generate with: python -c \"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\""
+        )
+if settings.ENCRYPTION_KEY == "":
+    logger.warning(
+        "ENCRYPTION_KEY not set — exchange API keys cannot be saved/restored. "
+        "Set ENCRYPTION_KEY env var before adding exchange connections."
+    )

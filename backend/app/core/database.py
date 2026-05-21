@@ -36,11 +36,10 @@ async def create_tables():
 
 
 async def get_db() -> AsyncSession:
-    """FastAPI dependency for DB sessions."""
+    """FastAPI dependency for DB sessions. Each endpoint is responsible for committing its own changes."""
     async with AsyncSessionLocal() as session:
         try:
             yield session
-            await session.commit()
         except Exception:
             await session.rollback()
             raise

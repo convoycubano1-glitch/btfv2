@@ -26,6 +26,62 @@ async def list_built_in_strategies():
     ]
 
 
+@router.get("/registry", response_model=list[dict])
+async def list_strategy_registry():
+    """Alias for /built-in — returns the full strategy registry (used by frontend)."""
+    return [
+        {
+            "type": key,
+            "name": meta["name"],
+            "description": meta["description"],
+            "category": meta["category"],
+            "default_parameters": meta["default_parameters"],
+            "risk_level": meta["risk_level"],
+        }
+        for key, meta in STRATEGY_REGISTRY.items()
+    ]
+
+
+@router.get("/", response_model=list[dict])
+async def list_strategies(
+    user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """Returns built-in strategies merged with the user's custom strategies."""
+    # Built-in strategies from registry
+    built_in = [
+        {
+            "id": f"builtin-{key}",
+            "name": meta["name"],
+            "type": key,
+            "description": meta["description"],
+            "category": meta["category"],
+            "risk_level": meta["risk_level"],
+            "is_active": False,
+            "is_builtin": True,
+            "default_parameters": meta["default_parameters"],
+        }
+        for key, meta in STRATEGY_REGISTRY.items()
+    ]
+    # User's custom strategies
+    result = await db.execute(select(Strategy).where(Strategy.user_id == uuid.UUID(user_id)))
+    custom = [
+        {
+            "id": str(s.id),
+            "name": s.name,
+            "type": s.strategy_type,
+            "description": s.description,
+            "category": "Custom",
+            "risk_level": "Variable",
+            "is_active": False,
+            "is_builtin": False,
+            "default_parameters": s.default_parameters,
+        }
+        for s in result.scalars().all()
+    ]
+    return built_in + custom
+
+
 @router.get("/my", response_model=list[dict])
 async def list_my_strategies(
     user_id: str = Depends(get_current_user_id),

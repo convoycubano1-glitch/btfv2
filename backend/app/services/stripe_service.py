@@ -31,8 +31,8 @@ class StripeService:
             customer_email=email,
             client_reference_id=user_id,
             metadata={"user_id": user_id, "plan": plan},
-            success_url="http://localhost:3000/subscription?success=true",
-            cancel_url="http://localhost:3000/subscription?cancelled=true",
+            success_url=f"{settings.FRONTEND_URL}/subscription?success=true",
+            cancel_url=f"{settings.FRONTEND_URL}/subscription?cancelled=true",
         )
         return session.url
 
@@ -95,3 +95,22 @@ class StripeService:
                 sub.stripe_subscription_id = None
                 await db.commit()
                 logger.info(f"Subscription cancelled: stripe_sub={stripe_sub_id}")
+
+    async def get_invoices(self, stripe_customer_id: str) -> list[dict]:
+        """Fetch invoice history for a Stripe customer."""
+        invoices = stripe.Invoice.list(customer=stripe_customer_id, limit=12)
+        return [
+            {
+                "id": inv["id"],
+                "number": inv.get("number", "—"),
+                "amount_paid": inv["amount_paid"] / 100,
+                "currency": inv["currency"].upper(),
+                "status": inv["status"],
+                "period_start": inv.get("period_start"),
+                "period_end": inv.get("period_end"),
+                "invoice_pdf": inv.get("invoice_pdf"),
+                "hosted_invoice_url": inv.get("hosted_invoice_url"),
+                "created": inv["created"],
+            }
+            for inv in invoices.data
+        ]

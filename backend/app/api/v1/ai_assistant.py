@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from app.core.security import get_current_user_id
 from app.services.ai_assistant import AIAssistant
+from app.core.limiter import limiter
 
 router = APIRouter()
 
@@ -20,7 +21,9 @@ class ChatResponse(BaseModel):
 
 
 @router.post("/chat", response_model=ChatResponse)
+@limiter.limit("20/minute")
 async def chat_with_ai(
+    request: Request,
     payload: ChatMessage,
     user_id: str = Depends(get_current_user_id),
 ):

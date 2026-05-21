@@ -3,6 +3,7 @@ import numpy as np
 import pandas_ta as ta
 from datetime import datetime, timezone
 import logging
+import uuid
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -19,7 +20,7 @@ async def run_backtest(backtest_id: str):
     from sqlalchemy import select
 
     async with AsyncSessionLocal() as db:
-        result = await db.execute(select(Backtest).where(Backtest.id == backtest_id))
+        result = await db.execute(select(Backtest).where(Backtest.id == uuid.UUID(backtest_id)))
         backtest = result.scalar_one_or_none()
         if not backtest:
             return

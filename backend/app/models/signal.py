@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy import Column, String, Boolean, DateTime, ForeignKey, Float, Integer, JSON, Enum as SAEnum, Text
+from sqlalchemy import Column, String, Boolean, DateTime, ForeignKey, Float, Integer, JSON, Enum as SAEnum, Text, Index
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from app.core.database import Base
@@ -61,6 +61,12 @@ class Signal(Base):
                         onupdate=lambda: datetime.now(timezone.utc))
 
     creator = relationship("User", back_populates="signals")
+
+    __table_args__ = (
+        Index("ix_signals_creator_id", "creator_id"),
+        Index("ix_signals_published_status", "is_published", "status"),
+        Index("ix_signals_symbol", "symbol"),
+    )
 
     def __repr__(self):
         return f"<Signal {self.symbol} {self.signal_type}>"
